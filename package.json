@@ -1,0 +1,15 @@
+{
+  "name": "gmail-automations",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Automations for Gmail, deployed as Google Apps Script projects.",
+  "scripts": {
+    "login": "clasp login",
+    "push": "clasp push",
+    "open": "clasp open",
+    "logs": "clasp logs"
+  },
+  "devDependencies": {
+    "@google/clasp": "^2.4.2"
+  }
+}
