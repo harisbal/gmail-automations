@@ -48,15 +48,40 @@ function isInvoiceAttachment_(attachment) {
   );
 }
 
-/** Saves the attachment to the folder unless a same-named file already exists. Returns true if saved. */
+/** Saves the attachment to the folder unless it's already there. Returns true if saved. */
 function saveAttachment_(attachment, folder, message) {
-  const fileName = buildFileName_(attachment, message);
-  if (folder.getFilesByName(fileName).hasNext()) {
-    Logger.log(`Skipping duplicate: ${fileName}`);
+  const baseName = buildFileName_(attachment, message);
+  const fileName = uniqueFileName_(folder, baseName, attachment.getSize());
+  if (fileName === null) {
+    Logger.log(`Skipping duplicate: ${baseName}`);
     return false;
   }
   folder.createFile(attachment).setName(fileName);
   return true;
+}
+
+/**
+ * Returns a filename safe to save under in folder: baseName itself if free,
+ * null if a file named baseName already exists with the same byte size
+ * (treated as the same attachment saved on a previous run), or baseName
+ * with a " (2)", " (3)", ... suffix if same-named files exist but differ
+ * in size (distinct attachments that happen to share a filename).
+ */
+function uniqueFileName_(folder, baseName, size) {
+  let candidate = baseName;
+  for (let n = 2; ; n++) {
+    const files = folder.getFilesByName(candidate);
+    if (!files.hasNext()) return candidate;
+    if (files.next().getSize() === size) return null;
+    candidate = withSuffix_(baseName, n);
+  }
+}
+
+function withSuffix_(baseName, n) {
+  const dotIndex = baseName.lastIndexOf('.');
+  return dotIndex === -1
+    ? `${baseName} (${n})`
+    : `${baseName.slice(0, dotIndex)} (${n})${baseName.slice(dotIndex)}`;
 }
 
 function buildFileName_(attachment, message) {
