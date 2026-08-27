@@ -51,7 +51,8 @@ function isInvoiceAttachment_(attachment) {
 /** Saves the attachment to the folder unless it's already there. Returns true if saved. */
 function saveAttachment_(attachment, folder, message) {
   const baseName = buildFileName_(attachment, message);
-  const fileName = uniqueFileName_(folder, baseName, attachment.getSize());
+  const domain = getSenderDomain_(message);
+  const fileName = uniqueFileName_(folder, baseName, attachment.getSize(), domain);
   if (fileName === null) {
     Logger.log(`Skipping duplicate: ${baseName}`);
     return false;
@@ -64,24 +65,42 @@ function saveAttachment_(attachment, folder, message) {
  * Returns a filename safe to save under in folder: baseName itself if free,
  * null if a file named baseName already exists with the same byte size
  * (treated as the same attachment saved on a previous run), or baseName
- * with a " (2)", " (3)", ... suffix if same-named files exist but differ
- * in size (distinct attachments that happen to share a filename).
+ * tagged with the sender's domain - and, in the rare case that's *also*
+ * taken by a different file, a numeric suffix on top - if same-named files
+ * exist but differ in size (distinct attachments sharing a filename).
  */
-function uniqueFileName_(folder, baseName, size) {
-  let candidate = baseName;
-  for (let n = 2; ; n++) {
+function uniqueFileName_(folder, baseName, size, domain) {
+  const candidates = [baseName, withTag_(baseName, domain)];
+  for (const candidate of candidates) {
     const files = folder.getFilesByName(candidate);
     if (!files.hasNext()) return candidate;
     if (files.next().getSize() === size) return null;
-    candidate = withSuffix_(baseName, n);
+  }
+  for (let n = 2; ; n++) {
+    const candidate = withTag_(baseName, `${domain}-${n}`);
+    const files = folder.getFilesByName(candidate);
+    if (!files.hasNext()) return candidate;
+    if (files.next().getSize() === size) return null;
   }
 }
 
-function withSuffix_(baseName, n) {
+function withTag_(baseName, tag) {
   const dotIndex = baseName.lastIndexOf('.');
   return dotIndex === -1
-    ? `${baseName} (${n})`
-    : `${baseName.slice(0, dotIndex)} (${n})${baseName.slice(dotIndex)}`;
+    ? `${baseName}_${tag}`
+    : `${baseName.slice(0, dotIndex)}_${tag}${baseName.slice(dotIndex)}`;
+}
+
+/** Extracts and sanitizes the sender's domain from a message, e.g. "vendor.com". */
+function getSenderDomain_(message) {
+  const match = message.getFrom().match(/@([^>\s]+)/);
+  const domain = match ? match[1] : 'unknown-sender';
+  return sanitizeForFilename_(domain);
+}
+
+/** Keeps a filename-safe subset of characters: letters, digits, dot, hyphen. */
+function sanitizeForFilename_(s) {
+  return s.toLowerCase().replace(/[^a-z0-9.-]/g, '-');
 }
 
 function buildFileName_(attachment, message) {
