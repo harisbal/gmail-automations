@@ -91,16 +91,16 @@ function withTag_(baseName, tag) {
     : `${baseName.slice(0, dotIndex)}_${tag}${baseName.slice(dotIndex)}`;
 }
 
-/** Extracts and sanitizes the sender's domain from a message, e.g. "vendor.com". */
+/** Extracts and sanitizes the sender's domain from a message, e.g. "vendor-com". */
 function getSenderDomain_(message) {
   const match = message.getFrom().match(/@([^>\s]+)/);
   const domain = match ? match[1] : 'unknown-sender';
   return sanitizeForFilename_(domain);
 }
 
-/** Keeps a filename-safe subset of characters: letters, digits, dot, hyphen. */
+/** Keeps a filename-safe subset of characters: letters, digits, hyphen (dots become hyphens too). */
 function sanitizeForFilename_(s) {
-  return s.toLowerCase().replace(/[^a-z0-9.-]/g, '-');
+  return s.toLowerCase().replace(/[^a-z0-9-]/g, '-');
 }
 
 function buildFileName_(attachment, message) {
